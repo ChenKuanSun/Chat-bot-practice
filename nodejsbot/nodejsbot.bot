@@ -1,0 +1,52 @@
+{
+    "name": "nodejsbot",
+    "description": "",
+    "services": [
+        {
+            "type": "abs",
+            "tenantId": "575bdaac-b67f-4b40-83a5-f2db382ed16f",
+            "subscriptionId": "5a381feb-16fc-436e-bbff-5d7c7b23f019",
+            "resourceGroup": "AIworkspace",
+            "serviceName": "nodejsbot",
+            "name": "nodejsbot",
+            "id": "1",
+            "appId": "f4598e36-7f7e-4a8b-8122-05ba89e7ef75"
+        },
+        {
+            "type": "blob",
+            "connectionString": "DefaultEndpointsProtocol=https;AccountName=nodejsbotaa85;AccountKey=6t91NE99U9rWh2AOEoB27H5A9JspwSs1VVLW3m6BIzSIuCBNer+ppDa9ZwIkJp3ehEpgwA3ImUFNCwCOwBgorQ==;",
+            "tenantId": "575bdaac-b67f-4b40-83a5-f2db382ed16f",
+            "subscriptionId": "5a381feb-16fc-436e-bbff-5d7c7b23f019",
+            "resourceGroup": "AIworkspace",
+            "serviceName": "nodejsbotaa85",
+            "id": "2"
+        },
+        {
+            "type": "endpoint",
+            "appId": "",
+            "appPassword": "",
+            "endpoint": "http://localhost:3978/api/messages",
+            "name": "development",
+            "id": "3"
+        },
+        {
+            "type": "endpoint",
+            "appId": "f4598e36-7f7e-4a8b-8122-05ba89e7ef75",
+            "appPassword": "J:V%xMmJ[OI!$^*rv;zu).GLfvFG3",
+            "endpoint": "https://nodejsbot-aa85.azurewebsites.net/api/messages",
+            "name": "production",
+            "id": "4"
+        },
+        {
+            "type": "luis",
+            "appId": "ea5ab2d6-94dc-4b70-808e-a2f72c349cce",
+            "authoringKey": "05ac16adc5bd43888f25279d072e0fec",
+            "version": "0.1",
+            "region": "westus",
+            "name": "BasicBotLuisApplication",
+            "id": "5"
+        }
+    ],
+    "padlock": "",
+    "version": "2.0"
+}
