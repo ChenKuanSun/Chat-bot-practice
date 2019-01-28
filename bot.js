@@ -29,7 +29,7 @@ class MyBot {
                 await turnContext.sendActivity(`好的，你想點${text}型的飲料．`);
                 
             } else {
-                await turnContext.sendActivity('看來你不是很好的客人，請看清楚我給你的建議再回答喲，請問需要點什麼類型飲料呢?');
+                await turnContext.sendActivity('看來你不是很好的客人，請看清楚我給你的建議再回答喲，請問需要點什麼類型飲料呢??');
             }
 
             // After the bot has responded send the suggested actions.
