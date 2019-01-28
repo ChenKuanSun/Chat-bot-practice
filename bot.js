@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-const { ActivityTypes } = require('botbuilder');
+const { ActivityTypes, ConversationState} = require('botbuilder');
 const { DialogSet, WaterfallDialog, ChoicePrompt, DialogTurnStatus } = require('botbuilder-dialogs');
 // Define identifiers for state property accessors.
 const DIALOG_STATE_ACCESSOR = 'dialogStateAccessor';
@@ -17,6 +17,7 @@ const SIZEOFDRINKS = 'sizeOfDrinksPrompt';
 
 class MyBot {
     constructor(conversationState) {
+        const conversationState = new ConversationState(memoryStorage);
         // 建立對話集和提示.
         this.dialogStateAccessor = conversationState.createProperty(DIALOG_STATE_ACCESSOR);
         this.reservationAccessor = conversationState.createProperty(RESERVATION_ACCESSOR);
