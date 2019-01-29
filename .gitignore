@@ -1,2 +1,13 @@
 node_modules
 .env
+ComplexDialogBot.bot
+LocalTest.bot
+package.json
+package-lock.json
+localpackage.json
+localpackage-lock.json
+localweb.config
+package.json
+package-lock.json
+web.config
+README.md

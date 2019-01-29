@@ -104,7 +104,7 @@ class MyBot {
                 case DialogTurnStatus.complete:
                     // If we just finished the dialog, capture and display the results.
                     const teaInfo = results.result;
-                    const status = '以下是你點的餐點內容';
+                    const status = '立刻為您準備，請稍候，謝謝光臨';
                     await turnContext.sendActivity(status);
                     await this.userProfileAccessor.set(turnContext, teaInfo);
                     await this.userState.saveChanges(turnContext);
