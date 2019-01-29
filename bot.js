@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-const { ActivityTypes, MessageFactory, TurnContext  } = require('botbuilder');
+const { ActivityTypes, MessageFactory, TurnContext } = require('botbuilder');
 const { DialogSet, WaterfallDialog, TextPrompt, NumberPrompt, ChoicePrompt, DialogTurnStatus } = require('botbuilder-dialogs');
 
 // Define state property accessor names.
@@ -9,22 +9,47 @@ const DIALOG_STATE_PROPERTY = 'dialogStateProperty';
 const USER_PROFILE_PROPERTY = 'userProfileProperty';
 
 const WELCOME_TEXT =
-    'Welcome to ComplexDialogBot. This bot provides a complex conversation, with multiple dialogs. '
-    + 'Type anything to get started.';
+    '歡迎光臨來到五十很難，麻煩出個聲讓我知道你是不是走錯了．';
 
 // Define the dialog and prompt names for the bot.
 
-
-const TEA_LIST = 'tea-Info';
+const TEA_LIST = 'tea-list';
+const TEA_TYPE = 'tea-Info';
 const CHECK_TEA = 'dialog-teacheck';
 
-const TYPEOFDRINKS = 'typeOfDrinksPrompt';
 const TYPEOFTEA = 'teaType';
 const SUGAROFDRINKS = 'sugarOfDrinksPrompt';
 const ICEOFDRINKS = 'iceOfDrinksPrompt';
 const SIZEOFDRINKS = 'sizeOfDrinksPrompt';
+const TEA_OPTIONS = [
+    '茉莉綠茶',
+    '阿薩姆紅茶',
+    '四季春青茶',
+    '黃金烏龍',
+    '冰淇淋紅茶',
+    '阿華田',
+    '珍珠奶綠',
+    '布丁奶茶']
+var big_tea_price = new Array();
+big_tea_price["茉莉綠茶"] = 30;
+big_tea_price["阿薩姆紅茶"] = 30;  
+big_tea_price["四季春青茶"] = 30;  
+big_tea_price["黃金烏龍"] = 30;  
+big_tea_price["冰淇淋紅茶"] = 50;  
+big_tea_price["阿華田"] = 55;  
+big_tea_price["珍珠奶綠"] = 50;
+big_tea_price["布丁奶茶"] = 60; 
+var small_tea_price = new Array();
+small_tea_price["茉莉綠茶"] = 25;
+small_tea_price["阿薩姆紅茶"] = 25;
+small_tea_price["四季春青茶"] = 25;
+small_tea_price["黃金烏龍"] = 25;
+small_tea_price["冰淇淋紅茶"] = 40;
+small_tea_price["阿華田"] = 45;
+small_tea_price["珍珠奶綠"] = 40;
+small_tea_price["布丁奶茶"] = 50; 
 
-
+const DONE_OPTION = '這樣就好了！';
 
 class MyBot {
     /**
@@ -45,7 +70,7 @@ class MyBot {
 
         // Add the prompts we need to the dialog set.
         this.dialogs
-            .add(new TextPrompt(TYPEOFTEA))
+            .add(new ChoicePrompt(TYPEOFTEA))
             .add(new TextPrompt(SUGAROFDRINKS))
             .add(new TextPrompt(ICEOFDRINKS))
             .add(new TextPrompt(SIZEOFDRINKS));
@@ -79,12 +104,7 @@ class MyBot {
                 case DialogTurnStatus.complete:
                     // If we just finished the dialog, capture and display the results.
                     const teaInfo = results.result;
-                    const status = '以下是你點的餐點內容'
-                        + teaInfo.size
-                        + teaInfo.sugar
-                        + teaInfo.ice
-                        + teaInfo.tea
-                        + '.';
+                    const status = '以下是你點的餐點內容';
                     await turnContext.sendActivity(status);
                     await this.userProfileAccessor.set(turnContext, teaInfo);
                     await this.userState.saveChanges(turnContext);
@@ -106,36 +126,66 @@ class MyBot {
 
 
     async askTypeOfTea(stepContext) {
-        stepContext.values[TEA_LIST] = {};
-        // 問茶
-        return await stepContext.prompt(TYPEOFTEA, '請問要喝什麼茶呢?');
+        const list = Array.isArray(stepContext.options) ? stepContext.options : [];
+        stepContext.values[TEA_LIST] = list;
+        stepContext.values[TEA_TYPE] = {};
+        let message;
+        if (list.length === 0) {
+            message = '請問要喝什麼茶呢??';
+            TEA_OPTIONS.push(DONE_OPTION);
+        } else {
+            message = `你點了${list[list.length - 1]}. 你還有需要其他飲料嗎？` +
+                '或是選`' + DONE_OPTION + '`就馬上為您結帳！';
+        }
+        
+
+        // Prompt the user for a choice.
+        return await stepContext.prompt(TYPEOFTEA, {
+            prompt: message,
+            retryPrompt: '請選選單上的茶類喔，其他我們都沒有！！',
+            choices: TEA_OPTIONS
+        });
+        // stepContext.values[TEA_TYPE] = {};
+        // // 問茶
+        // return await stepContext.prompt(TYPEOFTEA, '請問要喝什麼茶呢?');
     }
     async askSugarOfDrinks(stepContext) {
-        stepContext.values[TEA_LIST].tea = stepContext.result;
-        // 糖度
-        return await stepContext.prompt(
-            SUGAROFDRINKS, MessageFactory.suggestedActions(['正常', '少糖', '半糖', '微糖', '無糖'], '糖度呢?'));
+        if (stepContext.result.value === DONE_OPTION) {
+            stepContext.context.sendActivity('馬上為您結帳！');
+            checkout(stepContext.values[TEA_LIST], stepContext);
+            return await stepContext.endDialog();
+        } else {
+            stepContext.values[TEA_TYPE].tea = stepContext.result.value;
+            // 糖度
+            return await stepContext.prompt(
+                SUGAROFDRINKS, MessageFactory.suggestedActions(['正常', '少糖', '半糖', '微糖', '無糖'], '糖度呢?'));
+        }
     }
     async askIceOfDrinks(stepContext) {
-        stepContext.values[TEA_LIST].sugar = stepContext.result;
+        stepContext.values[TEA_TYPE].sugar = stepContext.result;
         // 冰塊
         return await stepContext.prompt(
-            ICEOFDRINKS, MessageFactory.suggestedActions(['正常', '少冰', '半冰', '微冰', '無冰', '熱的'], '冰塊要調整嗎?'));
+            ICEOFDRINKS, MessageFactory.suggestedActions(['正常', '少冰', '微冰', '無冰', '熱的'], '冰塊要調整嗎?'));
     }
     async askSizeOfDrinks(stepContext) {
-        stepContext.values[TEA_LIST].ice = stepContext.result;
+        stepContext.values[TEA_TYPE].ice = stepContext.result;
         // 大小
         return await stepContext.prompt(
             SIZEOFDRINKS, MessageFactory.suggestedActions(['大杯', '小杯'], '請問大小?'));
     }
     async checklist(stepContext) {
-        stepContext.values[TEA_LIST].size = stepContext.result;
+        stepContext.values[TEA_TYPE].size = stepContext.result;
+        const list = stepContext.values[TEA_LIST];
+        let message = stepContext.values[TEA_TYPE].size
+            + stepContext.values[TEA_TYPE].sugar
+            + stepContext.values[TEA_TYPE].ice
+            + stepContext.values[TEA_TYPE].tea;
+        stepContext.context.sendActivity(message);
+        list.push(message
+        );
 
-        // Exit the dialog, returning the collected user information.
-        return await stepContext.endDialog(stepContext.values[TEA_LIST]);
+        return await stepContext.replaceDialog(CHECK_TEA, list);
     }
-    
-
 
 
     // Sends a welcome message to any users who joined the conversation.
@@ -147,5 +197,26 @@ class MyBot {
         }
     }
 }
-
+function checkout(list, stepContext) {
+    var total_price_list = list.map(function (item, index, array) {
+        if (item.search('大')) {
+            return big_tea_price[item.substr(6)];
+        } else {
+            return small_tea_price[item.substr(6)];
+        }
+    });
+    const reducer = (accumulator, currentValue) => accumulator + currentValue;
+    var total_price = total_price_list.reduce(reducer);
+    stepContext.context.sendActivity('以下是您點的餐點！');
+    var message ='';
+    for (var i = 0; i < list.length; i++) {
+        message += (`${i + 1}`+ '. ' 
+            + list[i].replace('正常', '') 
+            + ' '
+            + total_price_list[i]
+            + '元\n')
+    }
+    stepContext.context.sendActivity(message);
+    stepContext.context.sendActivity('總計 ' + total_price + ' 元');
+}
 module.exports.MyBot = MyBot;
