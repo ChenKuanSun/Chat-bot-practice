@@ -1,210 +1,151 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-const { ActivityTypes, ConversationState} = require('botbuilder');
-const { DialogSet, WaterfallDialog, ChoicePrompt, DialogTurnStatus } = require('botbuilder-dialogs');
-// Define identifiers for state property accessors.
-const DIALOG_STATE_ACCESSOR = 'dialogStateAccessor';
-const RESERVATION_ACCESSOR = 'reservationAccessor';
+const { ActivityTypes, MessageFactory, TurnContext  } = require('botbuilder');
+const { DialogSet, WaterfallDialog, TextPrompt, NumberPrompt, ChoicePrompt, DialogTurnStatus } = require('botbuilder-dialogs');
 
-// Define identifiers for dialogs and prompts.
-const RESERVATION_DIALOG = 'reservationDialog';
-const TYPEOFTEA = 'teaType';
+// Define state property accessor names.
+const DIALOG_STATE_PROPERTY = 'dialogStateProperty';
+const USER_PROFILE_PROPERTY = 'userProfileProperty';
+
+const WELCOME_TEXT =
+    'Welcome to ComplexDialogBot. This bot provides a complex conversation, with multiple dialogs. '
+    + 'Type anything to get started.';
+
+// Define the dialog and prompt names for the bot.
+
+
+const TEA_LIST = 'tea-Info';
+const CHECK_TEA = 'dialog-teacheck';
+
 const TYPEOFDRINKS = 'typeOfDrinksPrompt';
+const TYPEOFTEA = 'teaType';
 const SUGAROFDRINKS = 'sugarOfDrinksPrompt';
 const ICEOFDRINKS = 'iceOfDrinksPrompt';
 const SIZEOFDRINKS = 'sizeOfDrinksPrompt';
 
+
+
 class MyBot {
-    constructor(conversationState) {
-        const conversationState = new ConversationState(memoryStorage);
-        // 建立對話集和提示.
-        this.dialogStateAccessor = conversationState.createProperty(DIALOG_STATE_ACCESSOR);
-        this.reservationAccessor = conversationState.createProperty(RESERVATION_ACCESSOR);
+    /**
+     *
+     * @param {ConversationState} conversation state object
+     * @param {UserState} user state object
+     */
+    constructor(conversationState, userState) {
+        // Create the state property accessors and save the state management objects.
+        this.dialogStateAccessor = conversationState.createProperty(DIALOG_STATE_PROPERTY);
+        this.userProfileAccessor = userState.createProperty(USER_PROFILE_PROPERTY);
         this.conversationState = conversationState;
-        // ...
-        this.dialogSet = new DialogSet(this.dialogStateAccessor);
-        //this.dialogSet.add(new NumberPrompt(TYPEOFTEA, this.partySizeValidator));
-        this.dialogSet.add(new TeaPrompt(TYPEOFTEA));
-        this.dialogSet.add(new ChoicePrompt(TYPEOFDRINKS));
-        this.dialogSet.add(new ChoicePrompt(SUGAROFDRINKS));
-        this.dialogSet.add(new ChoicePrompt(ICEOFDRINKS));
-        this.dialogSet.add(new ChoicePrompt(SIZEOFDRINKS));
-        // ...
-        this.dialogSet.add(new WaterfallDialog(RESERVATION_DIALOG, [
-            this.askTypeOfDrinks.bind(this),
-            this.askTypeOfTea.bind(this),
-            this.askSugarOfDrinks.bind(this),
-            this.askIceOfDrinks.bind(this),
-            this.askSizeOfDrinks.bind(this)
-        ]));
+        this.userState = userState;
+
+        // Create a dialog set for the bot. It requires a DialogState accessor, with which
+        // to retrieve the dialog state from the turn context.
+        this.dialogs = new DialogSet(this.dialogStateAccessor);
+
+        // Add the prompts we need to the dialog set.
+        this.dialogs
+            .add(new TextPrompt(TYPEOFTEA))
+            .add(new TextPrompt(SUGAROFDRINKS))
+            .add(new TextPrompt(ICEOFDRINKS))
+            .add(new TextPrompt(SIZEOFDRINKS));
+        // Add the dialogs we need to the dialog set.
+        this.dialogs.add(new WaterfallDialog(CHECK_TEA)
+            .addStep(this.askTypeOfTea.bind(this))
+            .addStep(this.askSugarOfDrinks.bind(this))
+            .addStep(this.askIceOfDrinks.bind(this))
+            .addStep(this.askSizeOfDrinks.bind(this))
+            .addStep(this.checklist.bind(this)));
     }
 
-
-    //實作對話步驟
-    async askTypeOfDrinks(stepContext) {
-        // 飲料類型
-        return await stepContext.prompt(
-            TYPEOFDRINKS, {
-                prompt: '請問需要點什麼類型飲料呢?',
-                retryPrompt: '我們這邊只有提供這些飲料喔，請再選擇一次。'
-            },
-            ['茶類']);
-    }
-    async askTypeOfTea(stepContext) {
-        // 問茶
-        return await stepContext.prompt(
-            TYPEOFTEA, {
-                prompt: '請問要喝什麼茶呢?',
-                retryPrompt: '請輸入你要喝的茶喔!'
-            });
-    }
-    async askSugarOfDrinks(stepContext) {
-        // 糖度
-        return await stepContext.prompt(
-            SUGAROFDRINKS, {
-                prompt: '糖度呢?',
-                retryPrompt: '糖度呢?'
-            },
-            ['正常', '少糖', '半糖', '微糖', '無糖']);
-    }
-    async askIceOfDrinks(stepContext) {
-        // 冰塊
-        return await stepContext.prompt(
-            ICEOFDRINKS, {
-                prompt: '冰塊要調整嗎?',
-                retryPrompt: '冰塊要調整嗎?'
-            },
-            ['正常', '少冰', '半冰', '微冰', '無冰', '熱的']);
-    }
-    async askSizeOfDrinks(stepContext) {
-        // 大小
-        return await stepContext.prompt(
-            SIZEOFDRINKS, {
-                prompt: '請問大小?',
-                retryPrompt: '請問大小?'
-            },
-            ['大杯', '小杯']);
-    }
-
+    /**
+     *
+     * @param {TurnContext} on turn context object.
+     */
     async onTurn(turnContext) {
-        switch (turnContext.activity.type) {
-            case ActivityTypes.Message:
-                // Get the current reservation info from state.
-                const reservation = await this.reservationAccessor.get(turnContext, null);
-
-                // Generate a dialog context for our dialog set.
-                const dc = await this.dialogSet.createContext(turnContext);
-
-                if (!dc.activeDialog) {
-                    // If there is no active dialog, check whether we have a reservation yet.
-                    if (!reservation) {
-                        // If not, start the dialog.
-                        await dc.beginDialog(RESERVATION_DIALOG);
-                    }
-                    else {
-                        // Otherwise, send a status message.
-                        await turnContext.sendActivity(
-                            `We'll see you ${reservation.date}.`);
-                    }
-                }
-                else {
-                    // Continue the dialog.
-                    const dialogTurnResult = await dc.continueDialog();
-
-                    // If the dialog completed this turn, record the reservation info.
-                    if (dialogTurnResult.status === DialogTurnStatus.complete) {
-                        await this.reservationAccessor.set(
-                            turnContext,
-                            dialogTurnResult.result);
-
-                        // Send a confirmation message to the user.
-                        await turnContext.sendActivity(
-                            `Your party of ${dialogTurnResult.result.size} is ` +
-                            `confirmed for ${dialogTurnResult.result.date}.`);
-                    }
-                }
-
-                // Save the updated dialog state into the conversation state.
-                await this.conversationState.saveChanges(turnContext, false);
-                break;
-            case ActivityTypes.EndOfConversation:
-            case ActivityTypes.DeleteUserData:
-                break;
-            default:
-                break;
+        if (turnContext.activity.type === ActivityTypes.Message) {
+            // Run the DialogSet - let the framework identify the current state of the dialog from
+            // the dialog stack and figure out what (if any) is the active dialog.
+            const dialogContext = await this.dialogs.createContext(turnContext);
+            const results = await dialogContext.continueDialog();
+            switch (results.status) {
+                case DialogTurnStatus.cancelled:
+                case DialogTurnStatus.empty:
+                    // If there is no active dialog, we should clear the user info and start a new dialog.
+                    await this.userProfileAccessor.set(turnContext, {});
+                    await this.userState.saveChanges(turnContext);
+                    await dialogContext.beginDialog(CHECK_TEA);
+                    break;
+                case DialogTurnStatus.complete:
+                    // If we just finished the dialog, capture and display the results.
+                    const teaInfo = results.result;
+                    const status = '以下是你點的餐點內容'
+                        + teaInfo.size
+                        + teaInfo.sugar
+                        + teaInfo.ice
+                        + teaInfo.tea
+                        + '.';
+                    await turnContext.sendActivity(status);
+                    await this.userProfileAccessor.set(turnContext, teaInfo);
+                    await this.userState.saveChanges(turnContext);
+                    break;
+                case DialogTurnStatus.waiting:
+                    // If there is an active dialog, we don't need to do anything here.
+                    break;
+            }
+            await this.conversationState.saveChanges(turnContext);
+        } else if (turnContext.activity.type === ActivityTypes.ConversationUpdate) {
+            if (turnContext.activity.membersAdded && turnContext.activity.membersAdded.length > 0) {
+                await this.sendWelcomeMessage(turnContext);
+            }
+        } else {
+            await turnContext.sendActivity(`[${turnContext.activity.type} event detected]`);
         }
     }
 
 
 
+    async askTypeOfTea(stepContext) {
+        stepContext.values[TEA_LIST] = {};
+        // 問茶
+        return await stepContext.prompt(TYPEOFTEA, '請問要喝什麼茶呢?');
+    }
+    async askSugarOfDrinks(stepContext) {
+        stepContext.values[TEA_LIST].tea = stepContext.result;
+        // 糖度
+        return await stepContext.prompt(
+            SUGAROFDRINKS, MessageFactory.suggestedActions(['正常', '少糖', '半糖', '微糖', '無糖'], '糖度呢?'));
+    }
+    async askIceOfDrinks(stepContext) {
+        stepContext.values[TEA_LIST].sugar = stepContext.result;
+        // 冰塊
+        return await stepContext.prompt(
+            ICEOFDRINKS, MessageFactory.suggestedActions(['正常', '少冰', '半冰', '微冰', '無冰', '熱的'], '冰塊要調整嗎?'));
+    }
+    async askSizeOfDrinks(stepContext) {
+        stepContext.values[TEA_LIST].ice = stepContext.result;
+        // 大小
+        return await stepContext.prompt(
+            SIZEOFDRINKS, MessageFactory.suggestedActions(['大杯', '小杯'], '請問大小?'));
+    }
+    async checklist(stepContext) {
+        stepContext.values[TEA_LIST].size = stepContext.result;
 
-    // async onTurn(turnContext) {
-    //     // See https://aka.ms/about-bot-activity-message to learn more about the message and other activity types.
-    //     if (turnContext.activity.type === ActivityTypes.Message) {
-    //         const text = turnContext.activity.text;
+        // Exit the dialog, returning the collected user information.
+        return await stepContext.endDialog(stepContext.values[TEA_LIST]);
+    }
+    
 
-    //         // Create an array with the valid color options.
-    //         const validColors = ['茶類', '奶類', '果汁類'];
 
-    //         // If the `text` is in the Array, a valid color was selected and send agreement.
-    //         if (validColors.includes(text)) {
-    //             await turnContext.sendActivity(`好的，你想點${text}型的飲料．`);
 
-    //         } else {
-    //             await turnContext.sendActivity('看來你不是很好的客人，請看清楚我給你的建議再回答喲，請問需要點什麼類型飲料呢?');
-    //         }
-
-    //         // After the bot has responded send the suggested actions.
-    //     } else if (turnContext.activity.type === ActivityTypes.ConversationUpdate) {
-    //         await this.sendWelcomeMessage(turnContext);
-    //     } else {
-    //         await turnContext.sendActivity(`[${turnContext.activity.type} event detected.]`);
-    //     }
-    // }
-
-    // /**
-    //  * Send a welcome message along with suggested actions for the user to click.
-    //  * @param {TurnContext} turnContext A TurnContext instance containing all the data needed for processing this conversation turn.
-    //  */
-    // async sendWelcomeMessage(turnContext) {
-    //     const activity = turnContext.activity;
-    //     if (activity.membersAdded) {
-    //         // Iterate over all new members added to the conversation.
-    //         for (const idx in activity.membersAdded) {
-    //             if (activity.membersAdded[idx].id !== activity.recipient.id) {
-    //                 const welcomeMessage = '你好，歡迎來到五十難飲料店，以下將為您提供簡易的點餐服務，如有服務不周的部分，那我也沒辦法～';
-    //                 await turnContext.sendActivity(welcomeMessage);
-    //                 await this.sendSuggestedActions(turnContext);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // /**
-    //  * Send suggested actions to the user.
-    //  * @param {TurnContext} turnContext A TurnContext instance containing all the data needed for processing this conversation turn.
-    //  */
-    // async sendSuggestedActions(turnContext) {
-    //     var reply = MessageFactory.suggestedActions(['茶類', '奶類', '果汁類'], '請問需要點什麼類型飲料呢?');
-    //     await turnContext.sendActivity(reply);
-    // }
-    // async sendSugarActions(turnContext) {
-    //     var reply = MessageFactory.suggestedActions(['茶類', '奶類', '果汁類'], '請問需要點什麼類型飲料呢?');
-    //     await turnContext.sendActivity(reply);
-    // }
-    // async sendIceActions(turnContext) {
-    //     var reply = MessageFactory.suggestedActions(['茶類', '奶類', '果汁類'], '請問需要點什麼類型飲料呢?');
-    //     await turnContext.sendActivity(reply);
-    // }
-    // async sendSizeActions(turnContext) {
-    //     var reply = MessageFactory.suggestedActions(['茶類', '奶類', '果汁類'], '請問需要點什麼類型飲料呢?');
-    //     await turnContext.sendActivity(reply);
-    // }
-    // async sendNumberActions(turnContext) {
-    //     var reply = MessageFactory.suggestedActions(['茶類', '奶類', '果汁類'], '請問需要點什麼類型飲料呢?');
-    //     await turnContext.sendActivity(reply);
-    // }
+    // Sends a welcome message to any users who joined the conversation.
+    async sendWelcomeMessage(turnContext) {
+        for (var idx in turnContext.activity.membersAdded) {
+            if (turnContext.activity.membersAdded[idx].id !== turnContext.activity.recipient.id) {
+                await turnContext.sendActivity(WELCOME_TEXT);
+            }
+        }
+    }
 }
 
 module.exports.MyBot = MyBot;

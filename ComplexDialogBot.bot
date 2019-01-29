@@ -1,5 +1,5 @@
 {
-    "name": "my-chat-bot",
+    "name": "ComplexDialogBot",
     "services": [
         {
             "type": "endpoint",
