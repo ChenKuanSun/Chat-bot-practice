@@ -78,20 +78,6 @@ const memoryStorage = new MemoryStorage();
 conversationState = new ConversationState(memoryStorage);
 userState = new UserState(memoryStorage);
 
-// CAUTION: You must ensure your product environment has the NODE_ENV set
-//          to use the Azure Blob storage or Azure Cosmos DB providers.
-
-// Add botbuilder-azure when using any Azure services. 
-// const { BlobStorage } = require('botbuilder-azure');
-// // Get service configuration
-// const blobStorageConfig = botConfig.findServiceByNameOrId(STORAGE_CONFIGURATION_ID);
-// const blobStorage = new BlobStorage({
-//     containerName: (blobStorageConfig.container || DEFAULT_BOT_CONTAINER),
-//     storageAccountOrConnectionString: blobStorageConfig.connectionString,
-// });
-// conversationState = new ConversationState(blobStorage);
-// userState = new UserState(blobStorage);
-
 // Create the main dialog.
 let bot;
 try {
