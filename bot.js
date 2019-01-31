@@ -4,9 +4,9 @@ const { DialogSet, DialogTurnStatus , WaterfallDialog, TextPrompt, ChoicePrompt}
 
 // Define state property accessor names.
 const DIALOG_STATE_PROPERTY = 'dialogStateProperty';
+const { WelcomeCard } = require('./welcome');
 
-const WELCOME_TEXT =
-    '歡迎光臨來到五十很難，麻煩出個聲讓我知道你是不是走錯了．';
+// const WELCOME_TEXT = '歡迎光臨來到五十很難，麻煩出個聲讓我知道你是不是走錯了．';
 const TEA_LIST = 'tea-list';
 const TEA_TYPE = 'tea-Info';
 const CHECK_TEA = 'dialog-teacheck';
@@ -91,10 +91,15 @@ class BasicBot {
             }
             await this.conversationState.saveChanges(turnContext);
         } else if (turnContext.activity.type === ActivityTypes.ConversationUpdate) {
-            
-            if (turnContext.activity.membersAdded && turnContext.activity.membersAdded.length > 0) {
-                await this.sendWelcomeMessage(turnContext);
-            }
+                for (var idx in turnContext.activity.membersAdded) {
+                    if (turnContext.activity.membersAdded[idx].id !== turnContext.activity.recipient.id) {
+                        const welcomeCard = CardFactory.adaptiveCard(WelcomeCard);
+                        await turnContext.sendActivity({ attachments: [welcomeCard] });
+                    }
+                }
+            // if (turnContext.activity.membersAdded && turnContext.activity.membersAdded.length > 0) {
+            //     await this.sendWelcomeMessage(turnContext);
+            // }
             
         } else {
             
@@ -114,8 +119,15 @@ class BasicBot {
         if (list.length === 0) {
             message = '請問要喝什麼茶呢??';
         } else {
-            message = `你剛剛點了${list[list.length - 1].replace('正常', '')}. \n你還有需要其他飲料嗎？` +
-                '\n還是馬上為您結帳？';
+            message = '你剛剛點了\n';
+            for (var j = 0; j < list.length; j++) {
+                message += (`${j + 1}`+ '. ' 
+                    + list[j].replace('正常', '')
+                    + '\n')
+            }
+            message += '\n你還有需要其他飲料嗎？\n還是馬上為您結帳？';
+            // message = `你剛剛點了${list[list.length - 1].replace('正常', '')}. \n你還有需要其他飲料嗎？` +
+                // '\n還是馬上為您結帳？';
         }
         
         return await stepContext.prompt(TYPEOFTEA, {
